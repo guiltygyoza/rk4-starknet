@@ -8,46 +8,6 @@ from starkware.cairo.common.math import (signed_div_rem, sign)
 const RANGE_CHECK_BOUND = 2 ** 64
 const SCALE_FP = 10000
 
-@view
-func query_next_given_coordinates {
-        storage_ptr : Storage*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        t : felt,
-        dt : felt,
-        x : felt,
-        xd : felt,
-        y : felt,
-        yd : felt
-    ) -> (
-        x_nxt : felt,
-        xd_nxt : felt,
-        y_nxt : felt,
-        yd_nxt : felt
-    ):
-    alloc_locals
-
-    # TODO: vectorize input
-    # TODO: structify output (not until testing framework supports this!)
-    # TODO: kindly ask Cairo team to enable vectorized function output
-
-    # Algorithm
-    #   use t, state (4-vector) to calculate next state at t+dt
-    #   return next state
-
-    local state : Dynamics = Dynamics(q1=x, q1d=xd, q2=y, q2d=yd) # packing
-
-    let (state_nxt) = rk4_2coord (t=t, dt=dt, state=state)
-
-    local x_nxt  = state_nxt.q1 # unpacking
-    local xd_nxt = state_nxt.q1d
-    local y_nxt  = state_nxt.q2
-    local yd_nxt = state_nxt.q2d
-
-    return (x_nxt, xd_nxt, y_nxt, yd_nxt)
-end
-
 # Generated problem-specific struct for holding the coordinates for dynamics (all in fixed-point representation)
 struct Dynamics:
     member q1  : felt
@@ -64,7 +24,6 @@ func dynamics_add {range_check_ptr} (
         state_z : Dynamics
     ):
     alloc_locals
-
     local q1_  = state_a.q1  + state_b.q1
     local q1d_ = state_a.q1d + state_b.q1d
     local q2_  = state_a.q2  + state_b.q2
@@ -81,7 +40,6 @@ func dynamics_mul_fp {range_check_ptr} (
         state_z : Dynamics
     ):
     alloc_locals
-
     local q1  = state_a.q1
     local q1d = state_a.q1d
     local q2  = state_a.q2
@@ -102,7 +60,6 @@ func dynamics_mul_fp_ul {range_check_ptr} (
         state_z : Dynamics
     ):
     alloc_locals
-
     local q1  = state_a.q1
     local q1d = state_a.q1d
     local q2  = state_a.q2
@@ -123,7 +80,6 @@ func dynamics_div_fp_ul {range_check_ptr} (
         state_z : Dynamics
     ):
     alloc_locals
-
     local q1  = state_a.q1
     local q1d = state_a.q1d
     local q2  = state_a.q2
@@ -134,6 +90,95 @@ func dynamics_div_fp_ul {range_check_ptr} (
     let (local q2d_) = div_fp_ul (q2d, divisor_ul)
     local state_z : Dynamics = Dynamics(q1=q1_, q1d=q1d_, q2=q2_, q2d=q2d_)
     return (state_z)
+end
+
+### Utility functions for fixed-point arithmetic
+
+func mul_fp {range_check_ptr} (
+        a : felt,
+        b : felt
+    ) -> (
+        c : felt
+    ):
+    # signed_div_rem by SCALE_FP after multiplication
+    tempvar product = a * b
+    let (c, _) = signed_div_rem(product, SCALE_FP, RANGE_CHECK_BOUND)
+    return (c)
+end
+
+func div_fp {range_check_ptr} (
+        a : felt,
+        b : felt
+    ) -> (
+        c : felt
+    ):
+    # multiply by SCALE_FP before signed_div_rem
+    tempvar a_scaled = a * SCALE_FP
+    let (c, _) = signed_div_rem(a_scaled, b, RANGE_CHECK_BOUND)
+    return (c)
+end
+
+func mul_fp_ul {range_check_ptr} (
+        a : felt,
+        b_ul : felt
+    ) -> (
+        c : felt
+    ):
+    let c = a * b_ul
+    return (c)
+end
+
+func div_fp_ul {range_check_ptr} (
+        a : felt,
+        b_ul : felt
+    ) -> (
+        c : felt
+    ):
+    let (c, _) = signed_div_rem(a, b_ul, RANGE_CHECK_BOUND)
+    return (c)
+end
+
+# Generated Runge-Kutta 4th-order method for Dynamics state
+func rk4 {range_check_ptr} (
+        t : felt,
+        dt : felt,
+        state : Dynamics
+    ) -> (
+        state_nxt : Dynamics
+    ):
+    alloc_locals
+    # k1 stage
+    local k1_state : Dynamics            = state
+    let (local k1_state_diff : Dynamics) = eval (k1_state)
+    let (local k1 : Dynamics)            = dynamics_mul_fp (k1_state_diff, dt)
+
+    # k2 stage
+    let (local k1_half : Dynamics)       = dynamics_div_fp_ul (k1, 2)
+    let (local k2_state : Dynamics)      = dynamics_add(state, k1_half)
+    let (local k2_state_diff : Dynamics) = eval (k2_state)
+    let (local k2 : Dynamics)            = dynamics_mul_fp (k2_state_diff, dt)
+
+    # k3 stage
+    let (local k2_half : Dynamics)       = dynamics_div_fp_ul (k2, 2)
+    let (local k3_state : Dynamics)      = dynamics_add(state, k2_half)
+    let (local k3_state_diff : Dynamics) = eval (k3_state)
+    let (local k3 : Dynamics)            = dynamics_mul_fp (k3_state_diff, dt)
+
+    # k4 stage
+    let (local k4_state : Dynamics)      = dynamics_add(state, k3)
+    let (local k4_state_diff : Dynamics) = eval (k4_state)
+    let (local k4 : Dynamics)            = dynamics_mul_fp (k4_state_diff, dt)
+
+    # sum k, mul dt, div 6, obtain state_nxt
+    let (local k2_2)        = dynamics_mul_fp_ul (k2, 2)
+    let (local k3_2)        = dynamics_mul_fp_ul (k3, 2)
+    let (local sum_k1_2k2)  = dynamics_add (k1, k2_2) # wish we could overload operators..
+    let (local sum_2k3_k4)  = dynamics_add (k3_2, k4)
+    let (local k_sum)       = dynamics_add (sum_k1_2k2, sum_2k3_k4)
+    let (local state_delta) = dynamics_div_fp_ul (k_sum, 6)
+    let (local state_nxt)   = dynamics_add (state, state_delta)
+
+    return (state_nxt)
 end
 
 # Problem-specific evaluation function for first-order derivative of x and xd
@@ -191,108 +236,43 @@ func eval {range_check_ptr} (
     return (state_diff)
 end
 
-# Runge-Kutta 4th-order method for four-vector
-# (set to @view for testing purposes)
-func rk4_2coord {range_check_ptr} (
+@view
+func query_next_given_coordinates {
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
         t : felt,
         dt : felt,
-        state : Dynamics
+        x : felt,
+        xd : felt,
+        y : felt,
+        yd : felt
     ) -> (
-        state_nxt : Dynamics
+        x_nxt : felt,
+        xd_nxt : felt,
+        y_nxt : felt,
+        yd_nxt : felt
     ):
     alloc_locals
 
-    ## accept generaized 2-q system (whether two-body 1D or 1-body 2D)
-    ## preparing for a shift to hamiltonian/lagrangian method
+    # TODO: vectorize input
+    # TODO: structify output (not until testing framework supports this!)
+    # TODO: kindly ask Cairo team to enable vectorized function output
 
-    # k1 stage
-    local k1_state : Dynamics            = state
-    let (local k1_state_diff : Dynamics) = eval (k1_state)
-    let (local k1 : Dynamics)            = dynamics_mul_fp (k1_state_diff, dt)
+    # Algorithm
+    #   use t, state to calculate next state at t+dt
+    #   return next state
 
-    # k2 stage
-    let (local k1_half : Dynamics)       = dynamics_div_fp_ul (k1, 2)
-    let (local k2_state : Dynamics)      = dynamics_add(state, k1_half)
-    let (local k2_state_diff : Dynamics) = eval (k2_state)
-    let (local k2 : Dynamics)            = dynamics_mul_fp (k2_state_diff, dt)
+    local state : Dynamics = Dynamics(q1=x, q1d=xd, q2=y, q2d=yd) # packing
 
-    # k3 stage
-    let (local k2_half : Dynamics)       = dynamics_div_fp_ul (k2, 2)
-    let (local k3_state : Dynamics)      = dynamics_add(state, k2_half)
-    let (local k3_state_diff : Dynamics) = eval (k3_state)
-    let (local k3 : Dynamics)            = dynamics_mul_fp (k3_state_diff, dt)
+    let (state_nxt) = rk4 (t=t, dt=dt, state=state)
 
-    # k4 stage
-    let (local k4_state : Dynamics)      = dynamics_add(state, k3)
-    let (local k4_state_diff : Dynamics) = eval (k4_state)
-    let (local k4 : Dynamics)            = dynamics_mul_fp (k4_state_diff, dt)
+    local x_nxt  = state_nxt.q1 # unpacking
+    local xd_nxt = state_nxt.q1d
+    local y_nxt  = state_nxt.q2
+    local yd_nxt = state_nxt.q2d
 
-    # sum k, mul dt, div 6, obtain state_nxt
-    let (local k2_2)        = dynamics_mul_fp_ul (k2, 2)
-    let (local k3_2)        = dynamics_mul_fp_ul (k3, 2)
-    let (local sum_k1_2k2)  = dynamics_add (k1, k2_2) # TODO: I hope we could overload the operators here..
-    let (local sum_2k3_k4)  = dynamics_add (k3_2, k4)
-    let (local k_sum)       = dynamics_add (sum_k1_2k2, sum_2k3_k4)
-    let (local state_delta) = dynamics_div_fp_ul (k_sum, 6)
-    let (local state_nxt)   = dynamics_add (state, state_delta)
-
-    return (state_nxt)
+    return (x_nxt, xd_nxt, y_nxt, yd_nxt)
 end
 
-### utility functions for fixed-point arithmetic
-
-@view
-func mul_fp {range_check_ptr} (
-        a : felt,
-        b : felt
-    ) -> (
-        c : felt
-    ):
-    # signed_div_rem by SCALE_FP after multiplication
-
-    tempvar product = a * b
-    let (c, _) = signed_div_rem(product, SCALE_FP, RANGE_CHECK_BOUND)
-
-    return (c)
-end
-
-@view
-func div_fp {range_check_ptr} (
-        a : felt,
-        b : felt
-    ) -> (
-        c : felt
-    ):
-    # multiply by SCALE_FP before signed_div_rem
-
-    tempvar a_scaled = a * SCALE_FP
-    let (c, _) = signed_div_rem(a_scaled, b, RANGE_CHECK_BOUND)
-
-    return (c)
-end
-
-@view
-func mul_fp_ul {range_check_ptr} (
-        a : felt,
-        b_ul : felt
-    ) -> (
-        c : felt
-    ):
-
-    let c = a * b_ul
-
-    return (c)
-end
-
-@view
-func div_fp_ul {range_check_ptr} (
-        a : felt,
-        b_ul : felt
-    ) -> (
-        c : felt
-    ):
-
-    let (c, _) = signed_div_rem(a, b_ul, RANGE_CHECK_BOUND)
-
-    return (c)
-end
