@@ -1,0 +1,168 @@
+[
+    {
+        "inputs": [
+            {
+                "name": "t",
+                "type": "felt"
+            },
+            {
+                "name": "dt",
+                "type": "felt"
+            },
+            {
+                "name": "x",
+                "type": "felt"
+            },
+            {
+                "name": "xd",
+                "type": "felt"
+            }
+        ],
+        "name": "query_next_given_coordinates",
+        "outputs": [
+            {
+                "name": "x_nxt",
+                "type": "felt"
+            },
+            {
+                "name": "xd_nxt",
+                "type": "felt"
+            },
+            {
+                "name": "x_delta",
+                "type": "felt"
+            },
+            {
+                "name": "xd_delta",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "t",
+                "type": "felt"
+            },
+            {
+                "name": "dt",
+                "type": "felt"
+            },
+            {
+                "name": "x",
+                "type": "felt"
+            },
+            {
+                "name": "xd",
+                "type": "felt"
+            }
+        ],
+        "name": "rk4_fp",
+        "outputs": [
+            {
+                "name": "x_nxt",
+                "type": "felt"
+            },
+            {
+                "name": "xd_nxt",
+                "type": "felt"
+            },
+            {
+                "name": "x_delta",
+                "type": "felt"
+            },
+            {
+                "name": "xd_delta",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "a",
+                "type": "felt"
+            },
+            {
+                "name": "b",
+                "type": "felt"
+            }
+        ],
+        "name": "mul_fp",
+        "outputs": [
+            {
+                "name": "c",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "a",
+                "type": "felt"
+            },
+            {
+                "name": "b",
+                "type": "felt"
+            }
+        ],
+        "name": "div_fp",
+        "outputs": [
+            {
+                "name": "c",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "a",
+                "type": "felt"
+            },
+            {
+                "name": "b_ul",
+                "type": "felt"
+            }
+        ],
+        "name": "mul_fp_ul",
+        "outputs": [
+            {
+                "name": "c",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "a",
+                "type": "felt"
+            },
+            {
+                "name": "b_ul",
+                "type": "felt"
+            }
+        ],
+        "name": "div_fp_ul",
+        "outputs": [
+            {
+                "name": "c",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]
