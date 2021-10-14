@@ -36,29 +36,119 @@ func query_next_given_coordinates {
     #   use t, state (4-vector) to calculate next state at t+dt
     #   return next state
 
-    let (
-        x_nxt,
-        xd_nxt,
-        y_nxt,
-        yd_nxt
-    ) = rk4_2coord (t=t, dt=dt, q1=x, q1d=xd, q2=y, q2d=yd)
+    local state : Dynamics = Dynamics(q1=x, q1d=xd, q2=y, q2d=yd) # packing
+
+    let (state_nxt) = rk4_2coord (t=t, dt=dt, state=state)
+
+    local x_nxt  = state_nxt.q1 # unpacking
+    local xd_nxt = state_nxt.q1d
+    local y_nxt  = state_nxt.q2
+    local yd_nxt = state_nxt.q2d
 
     return (x_nxt, xd_nxt, y_nxt, yd_nxt)
 end
 
-# Problem-specific evaluation function for first-order derivative of x and xd
-func eval {range_check_ptr} (
-        x : felt,
-        xd : felt,
-        y : felt,
-        yd : felt
+# Generated problem-specific struct for holding the coordinates for dynamics (all in fixed-point representation)
+struct Dynamics:
+    member q1  : felt
+    member q1d : felt
+    member q2  : felt
+    member q2d : felt
+end
+
+# Generated function to compute the sum of two Dynamics structs
+func dynamics_add {range_check_ptr} (
+        state_a : Dynamics,
+        state_b : Dynamics
     ) -> (
-        x_diff : felt,
-        vx_diff : felt,
-        y_diff : felt,
-        vy_diff : felt
+        state_z : Dynamics
     ):
     alloc_locals
+
+    local q1_  = state_a.q1  + state_b.q1
+    local q1d_ = state_a.q1d + state_b.q1d
+    local q2_  = state_a.q2  + state_b.q2
+    local q2d_ = state_a.q2d + state_b.q2d
+    local state_z : Dynamics = Dynamics(q1=q1_, q1d=q1d_, q2=q2_, q2d=q2d_)
+    return (state_z)
+end
+
+# Generated function to compute a Dynamics struct multiplied by a fixed-point value
+func dynamics_mul_fp {range_check_ptr} (
+        state_a : Dynamics,
+        multiplier_fp  : felt
+    ) -> (
+        state_z : Dynamics
+    ):
+    alloc_locals
+
+    local q1  = state_a.q1
+    local q1d = state_a.q1d
+    local q2  = state_a.q2
+    local q2d = state_a.q2d
+    let (local q1_)  = mul_fp (q1,  multiplier_fp)
+    let (local q1d_) = mul_fp (q1d, multiplier_fp)
+    let (local q2_)  = mul_fp (q2,  multiplier_fp)
+    let (local q2d_) = mul_fp (q2d, multiplier_fp)
+    local state_z : Dynamics = Dynamics(q1=q1_, q1d=q1d_, q2=q2_, q2d=q2d_)
+    return (state_z)
+end
+
+# Generated function to compute a Dynamics struct multiplied by a unit-less value
+func dynamics_mul_fp_ul {range_check_ptr} (
+        state_a : Dynamics,
+        multiplier_ul  : felt
+    ) -> (
+        state_z : Dynamics
+    ):
+    alloc_locals
+
+    local q1  = state_a.q1
+    local q1d = state_a.q1d
+    local q2  = state_a.q2
+    local q2d = state_a.q2d
+    let (local q1_)  = mul_fp_ul (q1,  multiplier_ul)
+    let (local q1d_) = mul_fp_ul (q1d, multiplier_ul)
+    let (local q2_)  = mul_fp_ul (q2,  multiplier_ul)
+    let (local q2d_) = mul_fp_ul (q2d, multiplier_ul)
+    local state_z : Dynamics = Dynamics(q1=q1_, q1d=q1d_, q2=q2_, q2d=q2d_)
+    return (state_z)
+end
+
+# Generated function to compute a Dynamics struct divided by a unit-less value
+func dynamics_div_fp_ul {range_check_ptr} (
+        state_a : Dynamics,
+        divisor_ul  : felt
+    ) -> (
+        state_z : Dynamics
+    ):
+    alloc_locals
+
+    local q1  = state_a.q1
+    local q1d = state_a.q1d
+    local q2  = state_a.q2
+    local q2d = state_a.q2d
+    let (local q1_)  = div_fp_ul (q1,  divisor_ul)
+    let (local q1d_) = div_fp_ul (q1d, divisor_ul)
+    let (local q2_)  = div_fp_ul (q2,  divisor_ul)
+    let (local q2d_) = div_fp_ul (q2d, divisor_ul)
+    local state_z : Dynamics = Dynamics(q1=q1_, q1d=q1d_, q2=q2_, q2d=q2d_)
+    return (state_z)
+end
+
+# Problem-specific evaluation function for first-order derivative of x and xd
+func eval {range_check_ptr} (
+        state : Dynamics
+    ) -> (
+        state_diff : Dynamics
+    ):
+    alloc_locals
+
+    # unpack struct
+    local x  = state.q1
+    local xd = state.q1d
+    local y  = state.q2
+    local yd = state.q2d
 
     # Scene setup
     # TODO externalize these into storage vars once block time is more mangeable
@@ -91,24 +181,24 @@ func eval {range_check_ptr} (
     tempvar nominator_y = -k1y - k2y + k3Wmy + k4Wmy
     let (local vy_diff) = div_fp (nominator_y, M)
 
-    return (x_diff, vx_diff, y_diff, vy_diff)
+    local state_diff : Dynamics = Dynamics(
+        q1  = x_diff,
+        q1d = vx_diff,
+        q2  = y_diff,
+        q2d = vy_diff
+    )
+
+    return (state_diff)
 end
 
 # Runge-Kutta 4th-order method for four-vector
 # (set to @view for testing purposes)
-@view
 func rk4_2coord {range_check_ptr} (
         t : felt,
         dt : felt,
-        q1 : felt,
-        q1d : felt,
-        q2 : felt,
-        q2d : felt
+        state : Dynamics
     ) -> (
-        q1_nxt : felt,
-        q1d_nxt : felt,
-        q2_nxt : felt,
-        q2d_nxt : felt
+        state_nxt : Dynamics
     ):
     alloc_locals
 
@@ -116,78 +206,37 @@ func rk4_2coord {range_check_ptr} (
     ## preparing for a shift to hamiltonian/lagrangian method
 
     # k1 stage
-    let (local k1_q1_, local k1_q1d_, local k1_q2_, local k1_q2d_) = eval (q1, q1d, q2, q2d)
-    let (local k1_q1)  = mul_fp (k1_q1_, dt)
-    let (local k1_q1d) = mul_fp (k1_q1d_, dt)
-    let (local k1_q2)  = mul_fp (k1_q2_, dt)
-    let (local k1_q2d) = mul_fp (k1_q2d_, dt)
+    local k1_state : Dynamics            = state
+    let (local k1_state_diff : Dynamics) = eval (k1_state)
+    let (local k1 : Dynamics)            = dynamics_mul_fp (k1_state_diff, dt)
 
     # k2 stage
-    let (local k1_q1_half)  = div_fp_ul (k1_q1,  2)
-    let (local k1_q1d_half) = div_fp_ul (k1_q1d,  2)
-    let (local k1_q2_half)  = div_fp_ul (k1_q2,  2)
-    let (local k1_q2d_half) = div_fp_ul (k1_q2d,  2)
-    local k2_q1_est  = q1  + k1_q1_half
-    local k2_q1d_est = q1d + k1_q1d_half
-    local k2_q2_est  = q2  + k1_q2_half
-    local k2_q2d_est = q2d + k1_q2d_half
-    let (local k2_q1_, local k2_q1d_, local k2_q2_, local k2_q2d_) = eval (k2_q1_est, k2_q1d_est, k2_q2_est, k2_q2d_est)
-    let (local k2_q1)  = mul_fp (k2_q1_, dt)
-    let (local k2_q1d) = mul_fp (k2_q1d_, dt)
-    let (local k2_q2)  = mul_fp (k2_q2_, dt)
-    let (local k2_q2d) = mul_fp (k2_q2d_, dt)
+    let (local k1_half : Dynamics)       = dynamics_div_fp_ul (k1, 2)
+    let (local k2_state : Dynamics)      = dynamics_add(state, k1_half)
+    let (local k2_state_diff : Dynamics) = eval (k2_state)
+    let (local k2 : Dynamics)            = dynamics_mul_fp (k2_state_diff, dt)
 
     # k3 stage
-    let (local k2_q1_half)  = div_fp_ul (k2_q1,  2)
-    let (local k2_q1d_half) = div_fp_ul (k2_q1d,  2)
-    let (local k2_q2_half)  = div_fp_ul (k2_q2,  2)
-    let (local k2_q2d_half) = div_fp_ul (k2_q2d,  2)
-    local k3_q1_est  = q1  + k2_q1_half
-    local k3_q1d_est = q1d + k2_q1d_half
-    local k3_q2_est  = q2  + k2_q2_half
-    local k3_q2d_est = q2d + k2_q2d_half
-    let (local k3_q1_, local k3_q1d_, local k3_q2_, local k3_q2d_) = eval (k3_q1_est, k3_q1d_est, k3_q2_est, k3_q2d_est)
-    let (local k3_q1)  = mul_fp (k3_q1_, dt)
-    let (local k3_q1d) = mul_fp (k3_q1d_, dt)
-    let (local k3_q2)  = mul_fp (k3_q2_, dt)
-    let (local k3_q2d) = mul_fp (k3_q2d_, dt)
+    let (local k2_half : Dynamics)       = dynamics_div_fp_ul (k2, 2)
+    let (local k3_state : Dynamics)      = dynamics_add(state, k2_half)
+    let (local k3_state_diff : Dynamics) = eval (k3_state)
+    let (local k3 : Dynamics)            = dynamics_mul_fp (k3_state_diff, dt)
 
     # k4 stage
-    local k4_q1_est  = q1  + k3_q1
-    local k4_q1d_est = q1d + k3_q1d
-    local k4_q2_est  = q2  + k3_q2
-    local k4_q2d_est = q2d + k3_q2d
-    let (local k4_q1_, local k4_q1d_, local k4_q2_, local k4_q2d_) = eval (k4_q1_est, k4_q1d_est, k4_q2_est, k4_q2d_est)
-    let (local k4_q1)  = mul_fp (k4_q1_, dt)
-    let (local k4_q1d) = mul_fp (k4_q1d_, dt)
-    let (local k4_q2)  = mul_fp (k4_q2_, dt)
-    let (local k4_q2d) = mul_fp (k4_q2d_, dt)
+    let (local k4_state : Dynamics)      = dynamics_add(state, k3)
+    let (local k4_state_diff : Dynamics) = eval (k4_state)
+    let (local k4 : Dynamics)            = dynamics_mul_fp (k4_state_diff, dt)
 
-    # sum k, mul dt, div 6
-    let (local k2_q1_mul2) = mul_fp_ul  (k2_q1, 2)
-    let (local k3_q1_mul2) = mul_fp_ul  (k3_q1, 2)
-    let (local k2_q1d_mul2) = mul_fp_ul (k2_q1d, 2)
-    let (local k3_q1d_mul2) = mul_fp_ul (k3_q1d, 2)
-    let (local k2_q2_mul2) = mul_fp_ul  (k2_q2, 2)
-    let (local k3_q2_mul2) = mul_fp_ul  (k3_q2, 2)
-    let (local k2_q2d_mul2) = mul_fp_ul (k2_q2d, 2)
-    let (local k3_q2d_mul2) = mul_fp_ul (k3_q2d, 2)
-    local k_q1_sum  = k1_q1  + k2_q1_mul2  + k3_q1_mul2  + k4_q1
-    local k_q1d_sum = k1_q1d + k2_q1d_mul2 + k3_q1d_mul2 + k4_q1d
-    local k_q2_sum  = k1_q2  + k2_q2_mul2  + k3_q2_mul2  + k4_q2
-    local k_q2d_sum = k1_q2d + k2_q2d_mul2 + k3_q2d_mul2 + k4_q2d
-    let (local q1_delta)  = div_fp_ul (k_q1_sum, 6)
-    let (local q1d_delta) = div_fp_ul (k_q1d_sum, 6)
-    let (local q2_delta)  = div_fp_ul (k_q2_sum, 6)
-    let (local q2d_delta) = div_fp_ul (k_q2d_sum, 6)
+    # sum k, mul dt, div 6, obtain state_nxt
+    let (local k2_2)        = dynamics_mul_fp_ul (k2, 2)
+    let (local k3_2)        = dynamics_mul_fp_ul (k3, 2)
+    let (local sum_k1_2k2)  = dynamics_add (k1, k2_2) # TODO: I hope we could overload the operators here..
+    let (local sum_2k3_k4)  = dynamics_add (k3_2, k4)
+    let (local k_sum)       = dynamics_add (sum_k1_2k2, sum_2k3_k4)
+    let (local state_delta) = dynamics_div_fp_ul (k_sum, 6)
+    let (local state_nxt)   = dynamics_add (state, state_delta)
 
-    # produce final estimation
-    tempvar q1_nxt  = q1  + q1_delta
-    tempvar q1d_nxt = q1d + q1d_delta
-    tempvar q2_nxt  = q2  + q2_delta
-    tempvar q2d_nxt = q2d + q2d_delta
-
-    return (q1_nxt, q1d_nxt, q2_nxt, q2d_nxt)
+    return (state_nxt)
 end
 
 ### utility functions for fixed-point arithmetic
