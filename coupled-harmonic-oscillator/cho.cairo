@@ -39,8 +39,7 @@ func query_next_given_coordinates {
         x1_nxt,
         x1d_nxt,
         x2_nxt,
-        x2d_nxt,
-        _, _, _, _
+        x2d_nxt
     ) = rk4_1d_2body_fp(t=t, dt=dt, x1=x1, x1d=x1d, x2=x2, x2d=x2d)
 
     return (x1_nxt, x1d_nxt, x2_nxt, x2d_nxt)
@@ -89,7 +88,7 @@ func eval_2d_fp {range_check_ptr} (
     return (x1_diff, v1_diff, x2_diff, v2_diff)
 end
 
-# Runge-Kutta 4th-order method for two-vector
+# Runge-Kutta 4th-order method for four-vector
 # (set to @view for testing purposes)
 @view
 func rk4_1d_2body_fp {range_check_ptr} (
@@ -103,11 +102,7 @@ func rk4_1d_2body_fp {range_check_ptr} (
         x1_nxt : felt,
         x1d_nxt : felt,
         x2_nxt : felt,
-        x2d_nxt : felt,
-        k1_x1 : felt,
-        k2_x1_mul2 : felt,
-        k3_x1_mul2 : felt,
-        k4_x1 : felt
+        x2d_nxt : felt
     ):
     alloc_locals
 
@@ -183,7 +178,7 @@ func rk4_1d_2body_fp {range_check_ptr} (
     tempvar x2_nxt  = x2 + x2_delta
     tempvar x2d_nxt = x2d + x2d_delta
 
-    return (x1_nxt, x1d_nxt, x2_nxt, x2d_nxt, k1_x1, k2_x1_mul2, k3_x1_mul2, k4_x1)
+    return (x1_nxt, x1d_nxt, x2_nxt, x2d_nxt)
 end
 
 ### utility functions for fixed-point arithmetic

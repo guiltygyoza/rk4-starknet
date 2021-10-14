@@ -148,7 +148,7 @@ PRIME_HALF = PRIME//2
 
 pygame.init()
 screen = pygame.display.set_mode( (WIDTH, HEIGHT) )
-pygame.display.set_caption( 'SHO' )
+pygame.display.set_caption( 'CHO' )
 
 #screen.fill( BG_COLOR )
 gradientBG()

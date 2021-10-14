@@ -1,0 +1,184 @@
+[
+    {
+        "inputs": [
+            {
+                "name": "t",
+                "type": "felt"
+            },
+            {
+                "name": "dt",
+                "type": "felt"
+            },
+            {
+                "name": "x",
+                "type": "felt"
+            },
+            {
+                "name": "xd",
+                "type": "felt"
+            },
+            {
+                "name": "y",
+                "type": "felt"
+            },
+            {
+                "name": "yd",
+                "type": "felt"
+            }
+        ],
+        "name": "query_next_given_coordinates",
+        "outputs": [
+            {
+                "name": "x_nxt",
+                "type": "felt"
+            },
+            {
+                "name": "xd_nxt",
+                "type": "felt"
+            },
+            {
+                "name": "y_nxt",
+                "type": "felt"
+            },
+            {
+                "name": "yd_nxt",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "t",
+                "type": "felt"
+            },
+            {
+                "name": "dt",
+                "type": "felt"
+            },
+            {
+                "name": "q1",
+                "type": "felt"
+            },
+            {
+                "name": "q1d",
+                "type": "felt"
+            },
+            {
+                "name": "q2",
+                "type": "felt"
+            },
+            {
+                "name": "q2d",
+                "type": "felt"
+            }
+        ],
+        "name": "rk4_2coord",
+        "outputs": [
+            {
+                "name": "q1_nxt",
+                "type": "felt"
+            },
+            {
+                "name": "q1d_nxt",
+                "type": "felt"
+            },
+            {
+                "name": "q2_nxt",
+                "type": "felt"
+            },
+            {
+                "name": "q2d_nxt",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "a",
+                "type": "felt"
+            },
+            {
+                "name": "b",
+                "type": "felt"
+            }
+        ],
+        "name": "mul_fp",
+        "outputs": [
+            {
+                "name": "c",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "a",
+                "type": "felt"
+            },
+            {
+                "name": "b",
+                "type": "felt"
+            }
+        ],
+        "name": "div_fp",
+        "outputs": [
+            {
+                "name": "c",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "a",
+                "type": "felt"
+            },
+            {
+                "name": "b_ul",
+                "type": "felt"
+            }
+        ],
+        "name": "mul_fp_ul",
+        "outputs": [
+            {
+                "name": "c",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "a",
+                "type": "felt"
+            },
+            {
+                "name": "b_ul",
+                "type": "felt"
+            }
+        ],
+        "name": "div_fp_ul",
+        "outputs": [
+            {
+                "name": "c",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]
